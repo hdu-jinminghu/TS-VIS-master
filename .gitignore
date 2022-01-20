@@ -1,0 +1,12 @@
+
+# backend
+__pycache__/
+db.sqlite3
+*.pyc
+.idea/
+discard
+frontend/
+
+# cache files
+__viscache__
+dev_test_file/
