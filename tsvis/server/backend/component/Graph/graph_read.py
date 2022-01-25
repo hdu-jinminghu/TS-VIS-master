@@ -443,12 +443,14 @@ def get_data(graph):
 
     # 数据存入
     # 放回data
-    data = filter(data)
-    return data
+    # data = filter(data, graph)
+    return data, graph
 
 
-def filter(g):
+
+def filter(g, graph):
     import re
+    import copy
     moudle_base_name = set(["Identity", "Linear", "Bilinear", "LazyLinear", "Conv1d", "Conv2d", "Conv3d", "ConvTranspose1d", "ConvTranspose2d",
                            "ConvTranspose3d", "LazyConv1d", "LazyConv2d", "LazyConv3d", "LazyConvTranspose1d", "LazyConvTranspose2d",
                            "LazyConvTranspose3d", "Threshold", "ReLU", "Hardtanh", "ReLU6", "Sigmoid", "Tanh", "Softmax", "Softmax2d",
@@ -547,147 +549,87 @@ def filter(g):
         for i in s_node["targets"]:
             if (("output" in i["id"]) and i["id"]!="output"):
                 s_node["targets"].remove(i)
+
+    # return new_g
+
+    #处理循环
+
+    relu_name = []
+    relu_num = []
     for need_node in new_g:
-        if len(need_node["targets"]) >1:
+        if len(need_node["targets"]) > 1:
             for target_node in reversed(need_node["targets"]):
                 if target_node["info"] == "":
                     need_node["targets"].remove(target_node)
-        if need_node["op"] !="":
+        if need_node["op"] != "":
             need_node["label"] = need_node["op"].split("::")[1]
+        if "relu" in need_node["label"]:
+            relu_name.append(need_node["uid"])
+            relu_num.append([0])
+    for need_node in new_g:
+        for target_name in need_node["targets"]:
+            if target_name["id"] in relu_name:
+                relu_index = relu_name.index(target_name["id"])
+                relu_num[relu_index][0] += 1
+                relu_num[relu_index].append(need_node["uid"])
+    temp = 0
+    contxt_relu = []
+    while(temp<len(relu_num)):
+        if relu_num[temp][0] > 1:
+            need_deel_relu_name = relu_name[temp]
+            input_relu = relu_num[temp][1:]
+            for need_node in reversed(new_g):
+                temp_name = ""
+                new_relu_node = None
+                i = 0
+                j = 0
+                if need_node["uid"] == need_deel_relu_name:
+                    output_relu = [i["id"] for i in need_node["targets"]]
+                    for graph_node in graph._node:
+                        for out_name in reversed(output_relu):
+                            if out_name in graph_node.replace("/", "to"):
+                                out_target = {
+                                    "id": out_name,
+                                    "info": need_node["targets"][0]["info"],
+                                    "control": 'false',
+                                    "num": 1
+                                }
+                                new_relu_node["targets"].append(out_target)
+                                output_relu.remove(out_name)
+                                # k = 1
+                        for input_name in reversed(input_relu):
+                            if input_name in graph_node.replace("/", "to"):
+                                if j != 0:
+                                    contxt_relu.append({temp_name: new_relu_node})
+                                new_relu_node = copy.deepcopy(need_node)
+                                temp_name = input_name
+                                new_relu_node["targets"] = []
+                                new_relu_node["uid"] =new_relu_node["uid"]+str(i)
+                                input_relu.remove(input_name)
+                                i += 1
+                                j = 1
+                                break
+                    contxt_relu.append({temp_name: new_relu_node})
+                    new_g.remove(need_node)
+        temp += 1
+
+    for need_node in new_g:
+        for conxtnet in contxt_relu:
+            if need_node["uid"] == list(conxtnet.keys())[0]:
+                for target in reversed(need_node["targets"]):
+                    if target["id"] in list(conxtnet.values())[0]["uid"]:
+                        target["id"] = list(conxtnet.values())[0]["uid"]
+                        new_g.append(list(conxtnet.values())[0])
+
+
+
+
+
 
 
     return new_g
 
 
-
-
-
-    # import copy
-
-    # moudle_name_new = copy.deepcopy(moudle_name)
-    # i = 0
-    # j = 1
-    # while j < len(moudle_name):
-    #     if(moudle_name[i] in moudle_name[j]):
-    #         moudle_name_new.remove(moudle_name[i])
-    #     i+=1
-    #     j+=1
-    #
-    #
-    # def del_node(node):
-    #     new_name = node["uid"].replace("/", "to")
-    #     for node_name in moudle_name_new:
-    #
-    #         if new_name == node_name:
-    #             node["sub_net"] = []
-    #             return
-    #     for kid_node in node["sub_net"]:
-    #         del_node(kid_node)
-    #
-    # def del_node_kid(node):
-    #     for target_node in reversed(node["targets"]):
-    #         new_name = target_node["id"].replace("/", "to")
-    #         for node_name in moudle_name_new:
-    #             if(( node_name in new_name ) and new_name != node_name):
-    #                 node["targets"].remove(target_node)
-    #                 break
-    #
-    #     for sub_node in node["sub_net"]:
-    #         del_node_kid(sub_node)
-    #
-    # for top_node in g:
-    #     if top_node["label"] == 'input' or top_node["label"] == "output":
-    #         top_node["sub_net"] = []
-    #     else:
-    #         del_node(top_node)
-    #
-    # for top_node1 in g:
-    #     del_node_kid(top_node1)
-    #
-    # # return g
-    #
-    # need_del_list = []
-    #
-    # def find_del_node(node):
-    #     if len(node["sub_net"]) != 0:
-    #         need_del_list.append(node["uid"])
-    #         for kid_sub_net in node["sub_net"]:
-    #             find_del_node(kid_sub_net)
-    # for top_node in g:
-    #     if (top_node["label"] != 'input' and top_node["label"] != "output"):
-    #         find_del_node(top_node)
-    # new_g = []
-    # def find_need_node(node):
-    #     for kid_sub_net in node["sub_net"]:
-    #         find_need_node(kid_sub_net)
-    #         tip = 0
-    #         for need_del_name in need_del_list:
-    #             if kid_sub_net["uid"] == need_del_name:
-    #                 tip = 1
-    #         if tip == 0:
-    #             new_g.append(kid_sub_net)
-    #
-    #     for target_node in reversed(node["targets"]):
-    #         for need_del_name in need_del_list:
-    #             if target_node["id"] == need_del_name:
-    #                 node["targets"].remove(target_node)
-    #
-    #
-    # for top_node in g:
-    #     if (top_node["label"].lower() == 'input' or top_node["label"].lower() == "output"):
-    #         top_node["sub_net"] = []
-    #         for target_node in reversed(top_node["targets"]):
-    #             for del_name in need_del_list:
-    #                 if target_node["id"] == del_name:
-    #                     top_node["targets"].remove(target_node)
-    #         new_g.append(top_node)
-    #     else:
-    #         find_need_node(top_node)
-    # for need_node in new_g:
-    #     need_node["parent"] = ""
-    #     need_node["uid"] = need_node["uid"].replace("/", "to")
-    #     need_node["layer"] = 1
-    #     # need_node["label"] = need_node["uid"]
-    #     for change_name in need_node["targets"]:
-    #         change_name["id"] = change_name["id"].replace("/", "to")
-    # for s_node in reversed(new_g):
-    #     for i in s_node["targets"]:
-    #         if (("output" in i["id"]) and i["id"]!="output"):
-    #             s_node["targets"].remove(i)
-    # for need_node in new_g:
-    #     if len(need_node["targets"]) >1:
-    #         for target_node in reversed(need_node["targets"]):
-    #             if target_node["info"] == "":
-    #                 need_node["targets"].remove(target_node)
-    #     if need_node["op"] !="":
-    #         need_node["label"] = need_node["op"].split("::")[1]
-    #
-    # i = 0
-    # link_data = ""
-    # while(i < len(new_g)):
-    #     if "relu" in new_g[i]["label"].lower() and len(new_g[i]["targets"]) > 1:     #relu多次使用
-    #         pass
-    #
-    #         # for prenode in new_g[i-1]["targets"]:
-    #         #     if prenode["id"] == new_g[i]["uid"]:
-    #         #         link_data = prenode["info"]
-    #         # relu_num = 0
-    #         # while(relu_num < new_g[i]["targets"]):
-    #         #     new_relu_node = copy.deepcopy(new_g[i])
-    #         #     new_relu_node["targets"] = new_g[i]["targets"][relu_num]
-    #         #     new_relu_node["uid"] = new_g[i]["uid"]+str(relu_num)
-    #         #     if new_g[i]["targets"][relu_num]["info"] == link_data:
-    #         #         for prenode in new_g[i-1]["targets"]:
-    #         #             if prenode["id"] == new_g[i]["uid"]:
-    #         #                 prenode["id"] = new_relu_node["uid"]
-    #
-    #
-    #
-    #     i+= 1
-    #
-    # return new_g
-    #
-    #
 
 
 

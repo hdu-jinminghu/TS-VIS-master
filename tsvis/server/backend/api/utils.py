@@ -99,6 +99,7 @@ def get_component(path):
                 components['statistic'] = {'histogram': get_tags(component)}
             elif component.name == 'graph':
                 components['graph'] = get_tags(component)
+                components['graph'].append("s_graph")
             elif component.name == 'hyperparm':
                 components['hyperparm'] = ['true']
             elif component.name == 'projector':
