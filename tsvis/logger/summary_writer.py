@@ -20,8 +20,8 @@ import numpy as np
 from typing import Union, Optional, Dict, List
 from .writer import EventFileWriter
 from .summary import scalar, image, audio, text, histogram, hparams, exception, embedding,\
-    embedding_sample, featuremap_PFV, featuremap_GradCam, featuremap_gray, SummaryMetadata,\
-    Summary
+    embedding_sample, featuremap_PFV, featuremap_GradCam, SummaryMetadata,\
+    Summary, make_tensor2
 numpy_compatible = np.ndarray
 
 class SummaryWriter(object):
@@ -118,19 +118,16 @@ class SummaryWriter(object):
         for i, tensor in enumerate(tensors):
             self.event_file_writer.add_summary(image(f'{tag}_{i}', tensor), global_step=step)
 
-    def add_featuremap(self, model, method, inputs):
-        if method == 'PFV':
-            self.event_file_writer.add_summary(featuremap_PFV(model, inputs))
-        elif method == 'GradCam':
-            self.event_file_writer.add_summary(featuremap_GradCam(model, inputs))
-        elif method == 'gray':
-            tag, data = featuremap_gray(model, inputs)
-            for tag_kid, data_kid in zip(tag, data):
-                metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
-                output = Summary(value=[Summary.Value(tag="gray"+tag_kid,
-                                                      tensor=data_kid,
-                                                      metadata=metadata)])
-                self.event_file_writer.add_summary(output)
+    def add_featuremap(self, model, inputs):
+        self.event_file_writer.add_summary(featuremap_PFV(model, inputs))
+        data, name = featuremap_GradCam(model, inputs)
+        for data_kid, kid_name in zip(data, name):
+            data_kid = make_tensor2(np.array(data_kid))
+            metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
+            output = Summary(value=[Summary.Value(tag=kid_name+"-GradCam", tensor=data_kid, metadata=metadata)])
+            self.event_file_writer.add_summary(output)
+
+
 
 
     def add_audio(self,

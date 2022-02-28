@@ -467,7 +467,7 @@ def filter(g, graph):
                            "InstanceNorm2d", "InstanceNorm3d", "LazyInstanceNorm1d", "LazyInstanceNorm2d", "LazyInstanceNorm3d", "LocalResponseNorm",
                            "CrossMapLRN2d", "LayerNorm", "GroupNorm", "Dropout", "Dropout2d", "Dropout3d", "AlphaDropout", "FeatureAlphaDropout",
                            "ReflectionPad1d", "ReflectionPad2d", "ReflectionPad3d", "ReplicationPad1d", "ReplicationPad2d", "ReplicationPad3d",
-                           "ZeroPad2d", "ConstantPad1d", "ConstantPad2d", "ConstantPad3d"])
+                           "ZeroPad2d", "ConstantPad1d", "ConstantPad2d", "ConstantPad3d", "RNN", "RNNBase", "LSTM", "GRU", "RNNCellBase", "RNNCell", "LSTMCell", "GRUCell"])
     base_tree_name = []
     def del_node_sub(node):
         if node["uid"].find("/") != -1:
@@ -563,6 +563,8 @@ def filter(g, graph):
                     need_node["targets"].remove(target_node)
         if need_node["op"] != "":
             need_node["label"] = need_node["op"].split("::")[1]
+            if "_" in need_node["label"]:
+                need_node["label"] = need_node["label"].replace("_", "")
         if "relu" in need_node["label"]:
             relu_name.append(need_node["uid"])
             relu_num.append([0])
@@ -620,12 +622,6 @@ def filter(g, graph):
                     if target["id"] in list(conxtnet.values())[0]["uid"]:
                         target["id"] = list(conxtnet.values())[0]["uid"]
                         new_g.append(list(conxtnet.values())[0])
-
-
-
-
-
-
 
     return new_g
 

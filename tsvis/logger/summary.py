@@ -32,8 +32,7 @@ from tsvis.proto.projector_pb2 import Projector
 from tsvis.proto.summary_pb2 import Summary, SummaryMetadata, HistogramProto
 from tsvis.proto.tensor_pb2 import TensorProto, TensorShapeProto
 from tsvis.proto.plugin_hparams_pb2 import HParamsPluginData, SessionStartInfo
-from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_gray\
-    , get_layers, normal
+from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test
 
 def scalar(name, scalar_value):
     """ 转换标量数据到potobuf格式 """
@@ -70,9 +69,11 @@ def image(name, tensor):
 
 def featuremap_PFV(model, input_batch):
     embeddings = []
-    get_embedding(model, embeddings)
-    model(input_batch)
+    name = []
+    model_list = get_name_test(model)
 
+    get_embedding(model, embeddings, name, model_list)
+    model(input_batch)
     vis = pfv(embeddings, image_shape=input_batch.shape[-2:])
 
     def filters(imgs, f=lambda x: x):
@@ -93,53 +94,31 @@ def featuremap_PFV(model, input_batch):
     out = out*255
     featuremap = make_tensor2(out)
     metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
-    return Summary(value=[Summary.Value(tag='PFV',
+    return Summary(value=[Summary.Value(tag=name[-1]+"-PFV",
                                         tensor=featuremap,
                                         metadata=metadata)])
 
 
 def featuremap_GradCam(model, input_batch):
     out = []
+    model_list = get_name_test(model)
+    name = []
+    tip = 0
     for img_tensor in input_batch:
         img_tensor = img_tensor.unsqueeze(0)
 
-        vis = get_activation(model, img_tensor)
-        feature_image = vis*255
-        feature_image[:, :, [0, 1, 2]] = feature_image[:, :, [2, 1, 0]]
-        feature_image = np.concatenate([feature_image[:,:,2],feature_image[:,:,1],feature_image[:,:,0]], axis=1).reshape(feature_image.shape)
-        out.append(feature_image)
-    featuremap = make_tensor2(np.array(out))
-    metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
-    return Summary(value=[Summary.Value(tag='GradCam',
-                                        tensor=featuremap,
-                                        metadata=metadata)])
+        all_vis = get_activation(model, img_tensor, name, model_list)
+        if tip == 0:
+            for need_name in name:
+                out.append([])
+            tip = 1
+        for index, vis in enumerate(all_vis):
+            feature_image = vis*255
+            feature_image[:, :, [0, 1, 2]] = feature_image[:, :, [2, 1, 0]]
+            # feature_image = np.concatenate([feature_image[:,:,2],feature_image[:,:,1],feature_image[:,:,0]], axis=1).reshape(feature_image.shape)
+            out[index].append(feature_image)
 
-
-def featuremap_gray(model, input_batch):
-    totall_list = []
-    name_list = []
-
-    i = 0
-    for img_tensor in input_batch:
-        activation = []
-        img_tensor = img_tensor.unsqueeze(0)
-        vis = get_gray(model, img_tensor, activation)
-        if (i == 0):
-            for index in vis:
-                name_list.append(list(index.keys())[0])
-                totall_list.append([])
-        for item in range(len(vis)):
-            totall_list[item].append(list(vis[item].values())[0])
-        i+=1
-    for last_index in range(len(totall_list)):
-        totall_list[last_index] = make_tensor2(np.array(totall_list[last_index]))
-    return name_list, totall_list
-
-
-
-
-
-
+    return out, name
 
 
 
@@ -289,3 +268,4 @@ def exception(name, tensor):
     return Summary(value=[Summary.Value(tag=name,
                                         projector=projector,
                                         metadata=metadata)])
+

@@ -23,8 +23,6 @@ import torch
 import torch.nn.functional as F
 import logging
 import functools
-import cv2
-import matplotlib as plt
 def check_image(tensor):
     ndim = tensor.ndim
     if ndim == 2:
@@ -114,66 +112,54 @@ def make_audio(tensor, sample_rate=44100):
         audio_string = fio.getvalue()
     return length_frames, num_channels, audio_string
 
-def get_embedding(model,embeddings):
+def get_embedding(model,embeddings, name, model_list):
     def feature_map_hook(module, input, output):
         embeddings.append(input[0])
     try:
-        for i, module in enumerate(model.children()):
-            if list(module.children()):
-                get_embedding(module,embeddings)
-            elif isinstance(module, nn.MaxPool2d) or (isinstance(module, nn.Conv2d) and module.stride > (1,1)):
+        for i in model._modules.keys():
+            module = model._modules[i]
+            if isinstance(module, nn.MaxPool2d) or (isinstance(module, nn.Conv2d) and module.stride > (1, 1)):
                 module.register_forward_hook(feature_map_hook)
+                for j in model_list:
+                    if j[list(j.keys())[0]] == module:
+                        name.append(list(j.keys())[0])
+            get_embedding(module, embeddings, name, model_list)
+        # for i, module in enumerate(model.children()):
+        #     if list(module.children()):
+        #         get_embedding(module, embeddings)
+        #     elif isinstance(module, nn.MaxPool2d) or (isinstance(module, nn.Conv2d) and module.stride > (1,1)):
+        #         module.register_forward_hook(feature_map_hook)
 
     except:
         logging.error('请下载pytorch')
 
-def get_activation(model, input_batch):
-    activation = None
-    activation_grad = None
-    last_layer = None
+def get_activation(model, input_batch, name, model_list):
     vis = None
-    last_layer = layers_list(model, last_layer)
+    all_vis = []
+    fmap_block = []
+    grad_block = []
     model.zero_grad()
     input_batch.requires_grad_()
     def forward_hook(module, input, output):
-        nonlocal activation
-        activation = output
+        # activation = output
+        fmap_block.append(output)
     def backward_hook(module, input, output):
-        nonlocal activation_grad
-        nonlocal vis
-        activation_grad = output[0]
-        vis = GradCam(activation, activation_grad, input_batch)
+        # activation_grad = output[0]
+        grad_block.insert(0, output[0])
     torch.set_grad_enabled(True)
-    last_layer.register_forward_hook(forward_hook)
-    last_layer.register_backward_hook(backward_hook)
+    layers_hook(model, name, model_list, forward_hook, backward_hook)
     output = model(input_batch)
     classes = torch.sigmoid(output)
     one_hot, _ = classes.max(dim=-1)
     one_hot.requires_grad_()
     model.zero_grad()
     one_hot.backward()
-    return vis
+    for activation, activation_grad in zip(fmap_block, grad_block):
+        vis = GradCam(activation, activation_grad, input_batch)
+        all_vis.append(vis)
+    return all_vis
 
 
-
-def get_gray(model, img_tensor,activation):
-    totall_list = get_name_test(model)
-    def forward_hook(module, input, output,name):
-        nonlocal activation
-        data = output.squeeze(0).detach().numpy()
-        data = normal(data)
-        activation.append({name: data})
-    for item in totall_list:
-        key = list(item.keys())[0]
-        values = list(item.values())[0]
-        if key.find("Conv") != -1:
-            Get_feature_hook = log(key)(forward_hook)
-            values.register_forward_hook(Get_feature_hook)
-
-
-
-    model(img_tensor)
-    return activation
 
 def pca_decomposition(x, n_components=3):
     feats = x.permute(0, 2, 3, 1).reshape(-1, x.shape[1])
@@ -200,20 +186,21 @@ def pfv(embeddings, image_shape=None, idx_layer=None, interp_mode='bilinear'):
         rgb = normalize_and_scale_features(layer_to_visualize)
         return rgb
 
-def layers_list(model,layers):
+def layers_hook(model, name, model_list,forward_hook, backward_hook):
     for i, module in enumerate(model.children()):
         if list(module.children()) and isinstance(module, nn.Module):
-            layers = layers_list(module, layers)
-        elif isinstance(module, nn.Conv2d):
-            layers = module
-        elif isinstance(module, nn.MaxPool2d):
-            layers = module
-    return layers
+            layers_hook(module, name, model_list, forward_hook, backward_hook)
+        elif isinstance(module, nn.Conv2d) or isinstance(module, nn.MaxPool2d):
+            module.register_forward_hook(forward_hook)
+            module.register_backward_hook(backward_hook)
+            for j in model_list:
+                if j[list(j.keys())[0]] == module:
+                    name.append(list(j.keys())[0])
 
 def GradCam(data_, data_grad_,img_data):
     image_size = (img_data.shape[-1], img_data.shape[-2])
     for i in range(img_data.shape[0]):
-        img = img_data[i].cpu().numpy()
+        img = img_data[i].detach().numpy()
         img = img - np.min(img)
         if np.max(img) != 0:
             img = img / np.max(img)
@@ -222,7 +209,7 @@ def GradCam(data_, data_grad_,img_data):
         weight = data_grad.mean(dim=-1, keepdim=True).mean(dim=-2, keepdim=True)
         mask = F.relu((weight * data).sum(dim=0))
         mask = F.interpolate(mask.unsqueeze(0).unsqueeze(0), image_size, mode='bilinear').squeeze(0).squeeze(0)
-        mask = np.array(mask)
+        mask = mask.detach().numpy()
         if np.max(mask) != 0:
             mask = mask / np.max(mask)
         else:
@@ -280,35 +267,6 @@ def map_JET(img):
 
     return out
 
-
-def get_layers(model):
-    layers = []
-
-    def unfold_layer(model):
-        layer_list = list(model.named_children())
-        for name, layer in layer_list:
-            module = layer
-            sublayer = list(module.named_children())
-            sublayer_num = len(sublayer)
-
-            # 如果module不包含子层，就把module加入到layers中
-            if sublayer_num == 0:
-                layers.append(module)
-            # 如果module包含子层，就重新递归
-            elif isinstance(module, torch.nn.Module):
-                unfold_layer(module)
-
-    unfold_layer(model)
-    return layers
-
-def normal(data):
-    B, C, R = data.shape
-    data = data.reshape((B, C*R))
-    b_min = np.expand_dims(np.min(data, axis=1), 1).repeat(C*R, 1)
-    b_max = np.expand_dims(np.max(data, axis=1), 1).repeat(C*R, 1)
-    data = (data-b_min)/(b_max-b_min)*255
-    return data.reshape((B, C, R))
-
 def get_name_test(model):
     model_name = model.__class__.__name__
     model_list = []
@@ -334,3 +292,35 @@ def log(text):
         return wrapper
 
     return decorator
+
+def get_name_test(model):
+    model_name = model.__class__.__name__
+    model_list = []
+    def find_parent_name(model):
+        nonlocal model_name
+        for i in model._modules.keys():
+            module = model._modules[i]
+
+            model_name = model_name + 'to' + module.__class__.__name__+'['+str(i)+']'
+            model_list.append({model_name: module})
+            find_parent_name(module)
+            index = model_name.rfind("to")
+            model_name = model_name[:index]
+    find_parent_name(model)
+    return model_list
+
+
+def all_layers(model, layers, model_list):
+    for i in model._modules.keys():
+        module = model._modules[i]
+        if list(module.children()) and isinstance(module, nn.Module):
+            all_layers(module, layers, model_list)
+        else:
+            layers['all_layers'].append(module)
+            for j in model_list:
+                if j[list(j.keys())[0]] == module:
+                    layers['all_layers_name'].append(list(j.keys())[0])
+
+
+
+
