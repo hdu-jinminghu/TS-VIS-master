@@ -557,7 +557,7 @@ def filter(g, graph):
     relu_name = []
     relu_num = []
     for need_node in new_g:
-        if len(need_node["targets"]) > 1:
+        if len(need_node["targets"]) > 1 and need_node["op"] == "":
             for target_node in reversed(need_node["targets"]):
                 if target_node["info"] == "":
                     need_node["targets"].remove(target_node)
