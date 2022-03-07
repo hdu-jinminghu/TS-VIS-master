@@ -222,6 +222,26 @@ def GradCam(data_, data_grad_,img_data):
             cam = cam / np.max(cam)
     return cam
 
+
+def get_gray(model, input_batch, name, model_list):
+    out = []
+    def forward_hook(module, input, output):
+        output = output.detach().numpy()[:, 0, :, :]
+        out.append(nol(output))
+    def backward_hook(module, input, output):
+        pass
+    layers_hook(model, name, model_list, forward_hook, backward_hook)
+    model(input_batch)
+    return out
+
+
+def nol(data):
+    nb, nn, nf = data.shape
+    data = data.reshape(nb, -1)
+    min_d, max_d = np.expand_dims(np.min(data, axis=-1), axis=1), np.expand_dims(np.max(data, axis=-1),axis=1)
+    data = (data-min_d)/(max_d-min_d)*255
+    return data.reshape(nb, nn, nf)
+
 def map_JET(img):
     img = np.around(img)
     n, m = img.shape
@@ -320,6 +340,9 @@ def all_layers(model, layers, model_list):
             for j in model_list:
                 if j[list(j.keys())[0]] == module:
                     layers['all_layers_name'].append(list(j.keys())[0])
+
+
+
 
 
 

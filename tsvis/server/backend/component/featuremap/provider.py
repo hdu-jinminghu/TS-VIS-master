@@ -12,7 +12,7 @@ def featuremap_provider(file_path, range, tag):
         map_data = featuremap_read(data=res, range=range, tag=tag).get_data()
         return map_data
     else:
-        raise ValueError('Parameter error, no data found')
+        return []
 
 def encode_base64(data):
     _io = io.BytesIO()

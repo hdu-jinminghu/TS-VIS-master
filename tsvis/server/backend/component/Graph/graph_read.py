@@ -469,6 +469,8 @@ def filter(g, graph):
                            "ReflectionPad1d", "ReflectionPad2d", "ReflectionPad3d", "ReplicationPad1d", "ReplicationPad2d", "ReplicationPad3d",
                            "ZeroPad2d", "ConstantPad1d", "ConstantPad2d", "ConstantPad3d", "RNN", "RNNBase", "LSTM", "GRU", "RNNCellBase", "RNNCell", "LSTMCell", "GRUCell"])
     base_tree_name = []
+    need_deal_input = False
+    need_deel_op = ["TupleConstruct", "TupleUnpack", "ListConstruct", "Constant"]
     def del_node_sub(node):
         if node["uid"].find("/") != -1:
             start = node["uid"].rindex("/")
@@ -484,6 +486,10 @@ def filter(g, graph):
 
     for top_node in g:
         if top_node["label"].lower() == 'input' or top_node["label"].lower() == "output":
+            if len(top_node["sub_net"]) > 1:
+                need_deal_input = True
+                need_input_node = top_node["sub_net"]
+
             top_node["sub_net"] = []
         else:
             del_node_sub(top_node)
@@ -526,17 +532,30 @@ def filter(g, graph):
         if tip == 0:
             new_g.append(node)
 
+    def deal_io(node, base_tree_name):
+        for io_target in reversed(node["targets"]):
+            for base_name in base_tree_name:
+                if io_target["id"] in base_name and io_target["id"] != base_name:
+                    node["targets"].remove(io_target)
+                    break
 
     for top_node in g:
         if top_node["label"].lower() == 'input' or top_node["label"].lower() == "output":
-            for io_target in reversed(top_node["targets"]):
-                for base_name in base_tree_name:
-                    if io_target["id"] in base_name and io_target["id"] != base_name:
-                        top_node["targets"].remove(io_target)
-                        break
+            deal_io(top_node, base_tree_name)
             new_g.append(top_node)
+            if need_deal_input and top_node["label"].lower() == 'input':
+                need_del_input = top_node
         else:
             find_need_node(top_node)
+    if need_deal_input:
+        for input_kid in need_input_node:
+            del_node_kid(input_kid)
+            deal_io(input_kid, base_tree_name)
+            input_kid["parent"] = ""
+            input_kid["uid"] = input_kid["uid"].replace("/", "to")
+            new_g.append(input_kid)
+        new_g.remove(need_del_input)
+
 
     for need_node in new_g:
         need_node["parent"] = ""
@@ -562,7 +581,10 @@ def filter(g, graph):
                 if target_node["info"] == "":
                     need_node["targets"].remove(target_node)
         if need_node["op"] != "":
-            need_node["label"] = need_node["op"].split("::")[1]
+            if "::" in need_node["op"]:
+                need_node["label"] = need_node["op"].split("::")[1]
+            else:
+                need_node["label"] = need_node["op"]
             if "_" in need_node["label"]:
                 need_node["label"] = need_node["label"].replace("_", "")
         if "relu" in need_node["label"]:
@@ -622,6 +644,19 @@ def filter(g, graph):
                     if target["id"] in list(conxtnet.values())[0]["uid"]:
                         target["id"] = list(conxtnet.values())[0]["uid"]
                         new_g.append(list(conxtnet.values())[0])
+
+    #删除多余操作符
+    for need_node in reversed(new_g):
+        if need_node["label"] in need_deel_op:
+            need_deal_id = need_node["uid"]
+            for item in new_g:
+                for target_node in reversed(item["targets"]):
+                    if target_node["id"] == need_deal_id:
+                        item["targets"].remove(target_node)
+                        item["targets"].extend(need_node["targets"])
+                        break
+            new_g.remove(need_node)
+
 
     return new_g
 

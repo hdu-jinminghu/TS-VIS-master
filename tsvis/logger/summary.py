@@ -17,7 +17,7 @@
 """
 import io
 import numpy as np
-import cv2
+# import cv2
 import time
 import numpy as np
 from torchvision import transforms as transforms
@@ -32,7 +32,7 @@ from tsvis.proto.projector_pb2 import Projector
 from tsvis.proto.summary_pb2 import Summary, SummaryMetadata, HistogramProto
 from tsvis.proto.tensor_pb2 import TensorProto, TensorShapeProto
 from tsvis.proto.plugin_hparams_pb2 import HParamsPluginData, SessionStartInfo
-from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test
+from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, get_gray
 
 def scalar(name, scalar_value):
     """ 转换标量数据到potobuf格式 """
@@ -119,6 +119,15 @@ def featuremap_GradCam(model, input_batch):
             out[index].append(feature_image)
 
     return out, name
+
+
+def featuremap_Gray(model, input_batch):
+    model_list = get_name_test(model)
+    name = []
+    all_vis = get_gray(model, input_batch, name, model_list)
+    return all_vis, name
+
+
 
 
 
