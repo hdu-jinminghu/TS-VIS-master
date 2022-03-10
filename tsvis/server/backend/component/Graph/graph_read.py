@@ -470,7 +470,7 @@ def filter(g, graph):
                            "ZeroPad2d", "ConstantPad1d", "ConstantPad2d", "ConstantPad3d", "RNN", "RNNBase", "LSTM", "GRU", "RNNCellBase", "RNNCell", "LSTMCell", "GRUCell"])
     base_tree_name = []
     need_deal_input = False
-    need_deel_op = ["TupleConstruct", "TupleUnpack", "ListConstruct", "Constant"]
+    need_deel_op = ["TupleConstruct", "TupleUnpack", "ListConstruct", "Constant", "size", "NumToTensor", "Int", "slice"]
     def del_node_sub(node):
         if node["uid"].find("/") != -1:
             start = node["uid"].rindex("/")

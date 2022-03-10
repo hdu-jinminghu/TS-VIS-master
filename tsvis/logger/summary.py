@@ -32,7 +32,7 @@ from tsvis.proto.projector_pb2 import Projector
 from tsvis.proto.summary_pb2 import Summary, SummaryMetadata, HistogramProto
 from tsvis.proto.tensor_pb2 import TensorProto, TensorShapeProto
 from tsvis.proto.plugin_hparams_pb2 import HParamsPluginData, SessionStartInfo
-from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, get_gray
+from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, get_gray, Guided_backprop
 
 def scalar(name, scalar_value):
     """ 转换标量数据到potobuf格式 """
@@ -127,6 +127,22 @@ def featuremap_Gray(model, input_batch):
     all_vis = get_gray(model, input_batch, name, model_list)
     return all_vis, name
 
+def featuremap_guidebp(model, input_batch):
+    out = []
+    model_list = get_name_test(model)
+    # for img_tensor in input_batch:
+    #     name = []
+    #     tensor = img_tensor.unsqueeze(0).requires_grad_()
+    #     guided_bp = Guided_backprop(model, model_list, name, tensor)  # 实例化guided_bp，如果是实例方法必须实例化，（self）含有self的方法就是实例方法
+    #     vis = guided_bp.find_layer()
+    #     out.append(vis)
+    #     break
+    name = []
+    input_batch.requires_grad_()
+    guided_bp = Guided_backprop(model, model_list, name, input_batch)
+    out = guided_bp.find_layer()
+
+    return out, name
 
 
 

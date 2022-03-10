@@ -235,6 +235,175 @@ def get_gray(model, input_batch, name, model_list):
     return out
 
 
+class Guided_backprop():
+    def __init__(self, model, model_list, name, img_tensor):
+        self.model = model
+        self.image_reconstruction = None
+        self.activation_maps = []
+        self.model_list = model_list
+        self.name = name
+        self.totall_forward_data = []
+        self.totall_backward_data = []
+        self.input = img_tensor
+        self.clearn = []
+
+        self.first_register_hooks()
+        self.need_change_layer = None
+
+    def first_register_hooks(self):
+        def first_forward_hook_fn(module, input, output):
+            self.totall_forward_data.append(output)
+
+        def first_backward_hook_fn(module, grad_in, grad_out):
+            self.totall_backward_data.insert(0, grad_out[0])
+
+        def relu_hook(model,  name, model_list, forward_hook, backward_hook):
+            for i, module in enumerate(model.children()):
+                if list(module.children()) and isinstance(module, nn.Module):
+                    relu_hook(module, name, model_list, forward_hook, backward_hook)
+                elif isinstance(module, nn.ReLU):
+                    x = module.register_forward_hook(forward_hook)
+                    y = module.register_backward_hook(backward_hook)
+                    self.clearn.append(x)
+                    self.clearn.append(y)
+                    for j in model_list:
+                        if j[list(j.keys())[0]] == module:
+                            name.append(list(j.keys())[0])
+        relu_hook(self.model, self.name, self.model_list, first_forward_hook_fn, first_backward_hook_fn)
+        model_output = self.model(self.input)
+        self.model.zero_grad()
+        # pred_class = model_output.argmax().item()
+        #
+        # # 生成目标类 one-hot 向量，作为反向传播的起点
+        # grad_target_map = torch.zeros(model_output.shape,
+        #                               dtype=torch.float)
+        # grad_target_map[0][pred_class] = 1
+
+        pred_class = torch.argmax(model_output, dim=1)
+        # 生成目标类 one-hot 向量，作为反向传播的起点
+        grad_target_map = torch.zeros(model_output.shape,
+                                      dtype=torch.float)
+        img_idx = torch.arange(0, model_output.size(0))
+        grad_target_map[img_idx, pred_class] = 1
+
+        # 反向传播，之前注册的 backward hook 开始起作用
+        model_output.backward(grad_target_map)
+        for item in self.clearn:
+            item.remove()
+
+    def register_hooks(self):
+        def first_layer_hook_fn(module, grad_in, grad_out):
+            # 在全局变量中保存输入图片的梯度，该梯度由第一层卷积层
+            # 反向传播得到，因此该函数需绑定第一个 Conv2d Layer
+            self.image_reconstruction = grad_in[0]
+        def forward_hook_fn(module, input, output):
+            # 在全局变量中保存 ReLU 层的前向传播输出
+            # 用于将来做 guided backpropagation
+            self.activation_maps.append(output)
+
+        def backward_hook_fn(module, grad_in, grad_out):
+            grad = self.activation_maps.pop()
+            if module == self.need_change_layer[list(self.need_change_layer.keys())[0]]:
+                index = self.name.index(list(self.need_change_layer.keys())[0])
+                need_activation = self.totall_forward_data[index]
+                need_grad = self.totall_backward_data[index]
+                need_activation[need_activation > 0] = 1
+                positive_grad_out = torch.clamp(need_grad, min=0.0)
+                new_grad_in = positive_grad_out * need_activation
+                return (new_grad_in,)
+            else:
+                # ReLU 正向传播的输出要么大于0，要么等于0，
+                # 大于 0 的部分，梯度为1，
+                # 等于0的部分，梯度还是 0
+                grad[grad > 0] = 1
+
+                # grad_out[0] 表示 feature 的梯度，只保留大于 0 的部分
+                positive_grad_out = torch.clamp(grad_out[0], min=0.0)
+                # 创建新的输入端梯度
+                new_grad_in = positive_grad_out * grad
+
+                # ReLU 不含 parameter，输入端梯度是一个只有一个元素的 tuple
+                return (new_grad_in,)
+
+        all_conv = []
+        def relu_hook(model,forward_hook, backward_hook):
+            for i, module in enumerate(model.children()):
+                if list(module.children()) and isinstance(module, nn.Module):
+                    relu_hook(module, forward_hook, backward_hook)
+                elif isinstance(module, nn.ReLU):
+                    module.register_forward_hook(forward_hook)
+                    module.register_backward_hook(backward_hook)
+                elif isinstance(module, nn.Conv2d):
+                    all_conv.append(module)
+
+        relu_hook(self.model, forward_hook_fn, backward_hook_fn)
+        # first_layer = all_conv[0]
+        # first_layer.register_backward_hook(first_layer_hook_fn)
+
+    def visualize(self, input_image):
+        # 获取输出，之前注册的 forward hook 开始起作用
+        model_output = self.model(input_image)
+        self.model.zero_grad()
+        # pred_class = model_output.argmax().item()
+        #
+        # # 生成目标类 one-hot 向量，作为反向传播的起点
+        # grad_target_map = torch.zeros(model_output.shape,
+        #                               dtype=torch.float)
+        # grad_target_map[0][pred_class] = 1
+        pred_class = torch.argmax(model_output, dim=1)
+        # 生成目标类 one-hot 向量，作为反向传播的起点
+        grad_target_map = torch.zeros(model_output.shape,
+                                      dtype=torch.float)
+        img_idx = torch.arange(0, model_output.size(0))
+        grad_target_map[img_idx, pred_class] = 1
+        # 反向传播，之前注册的 backward hook 开始起作用
+        model_output.backward(grad_target_map)
+        self.image_reconstruction = input_image.grad
+        # 得到 target class 对输入图片的梯度，转换成图片格式
+        result = self.image_reconstruction.data.permute(0, 2, 3, 1)
+        return result.numpy()
+
+    @staticmethod  ##使得normalize变成静态方法和他model没有关系，Guided_backprop.normalize()调用
+    def normalize(I):
+        # 归一化梯度map，先归一化到 mean=0 std=1
+        norm = (I - I.mean()) / I.std()
+        # 把 std 重置为 0.1，让梯度map中的数值尽可能接近 0
+        norm = norm * 0.1
+        # 均值加 0.5，保证大部分的梯度值为正
+        norm = norm + 0.5
+        # 把 0，1 以外的梯度值分别设置为 0 和 1
+        norm = norm.clip(0, 1)
+        return norm
+    def find_layer(self):
+        all_data = []
+        for name in self.name:
+            for j in self.model_list:
+                if name == list(j.keys())[0]:
+                    self.need_change_layer = j
+                    self.register_hooks()
+                    result = self.visualize(self.input)
+                    result = self.normalize(result) * 255
+                    all_data.append(result)
+                    break
+        return all_data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def nol(data):
     nb, nn, nf = data.shape
     data = data.reshape(nb, -1)

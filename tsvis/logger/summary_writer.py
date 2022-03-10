@@ -21,7 +21,7 @@ from typing import Union, Optional, Dict, List
 from .writer import EventFileWriter
 from .summary import scalar, image, audio, text, histogram, hparams, exception, embedding,\
     embedding_sample, featuremap_PFV, featuremap_GradCam, SummaryMetadata,\
-    Summary, make_tensor2, featuremap_Gray
+    Summary, make_tensor2, featuremap_Gray, featuremap_guidebp
 numpy_compatible = np.ndarray
 
 class SummaryWriter(object):
@@ -132,6 +132,12 @@ class SummaryWriter(object):
             data_kid = make_tensor2(np.array(data_kid))
             metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
             output = Summary(value=[Summary.Value(tag=kid_name+"-Gray", tensor=data_kid, metadata=metadata)])
+            self.event_file_writer.add_summary(output)
+        data_guided, name_guided = featuremap_guidebp(model, inputs)
+        for data_kid, kid_name in zip(data_guided, name_guided):
+            data_kid = make_tensor2(np.array(data_kid))
+            metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
+            output = Summary(value=[Summary.Value(tag=kid_name+"-guidedbp", tensor=data_kid, metadata=metadata)])
             self.event_file_writer.add_summary(output)
 
 
