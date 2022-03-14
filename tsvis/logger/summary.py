@@ -32,7 +32,7 @@ from tsvis.proto.projector_pb2 import Projector
 from tsvis.proto.summary_pb2 import Summary, SummaryMetadata, HistogramProto
 from tsvis.proto.tensor_pb2 import TensorProto, TensorShapeProto
 from tsvis.proto.plugin_hparams_pb2 import HParamsPluginData, SessionStartInfo
-from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, get_gray, Guided_backprop
+from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, get_gray, Guided_backprop, find_output_sorce
 
 def scalar(name, scalar_value):
     """ 转换标量数据到potobuf格式 """
@@ -73,9 +73,9 @@ def featuremap_PFV(model, input_batch):
     model_list = get_name_test(model)
 
     get_embedding(model, embeddings, name, model_list)
-    model(input_batch)
+    output = model(input_batch)
     vis = pfv(embeddings, image_shape=input_batch.shape[-2:])
-
+    put_sorce = find_output_sorce(output)
     def filters(imgs, f=lambda x: x):
         imgs = np.transpose(imgs, (0, 2, 3, 1))
         l = [f(imgs[i, :, :, :]) for i in range(imgs.shape[0])]
@@ -93,10 +93,9 @@ def featuremap_PFV(model, input_batch):
     out = np.array(out)
     out = out*255
     featuremap = make_tensor2(out)
-    metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
-    return Summary(value=[Summary.Value(tag=name[-1]+"-PFV",
-                                        tensor=featuremap,
-                                        metadata=metadata)])
+    put_sorce = make_tensor2(put_sorce)
+    return featuremap, name, put_sorce
+
 
 
 def featuremap_GradCam(model, input_batch):
@@ -128,15 +127,7 @@ def featuremap_Gray(model, input_batch):
     return all_vis, name
 
 def featuremap_guidebp(model, input_batch):
-    out = []
     model_list = get_name_test(model)
-    # for img_tensor in input_batch:
-    #     name = []
-    #     tensor = img_tensor.unsqueeze(0).requires_grad_()
-    #     guided_bp = Guided_backprop(model, model_list, name, tensor)  # 实例化guided_bp，如果是实例方法必须实例化，（self）含有self的方法就是实例方法
-    #     vis = guided_bp.find_layer()
-    #     out.append(vis)
-    #     break
     name = []
     input_batch.requires_grad_()
     guided_bp = Guided_backprop(model, model_list, name, input_batch)

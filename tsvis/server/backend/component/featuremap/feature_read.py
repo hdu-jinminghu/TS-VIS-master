@@ -1,9 +1,10 @@
 import numpy as np
 class featuremap_read:
-    def __init__(self, data=None, range=None, tag=None):
+    def __init__(self, data=None, range=None, tag=None, sorce_data=None):
         self.data = data
         self.range = range
         self.tag = tag
+        self.sorce = sorce_data
     def get_data(self):
         if self.data:
             result = []
@@ -14,7 +15,9 @@ class featuremap_read:
                 values = {'wall_time': _data[0]['wall_time'],
                           'step': _data[0]['step'],
                           'Remaining_pictures': over_len,
-                          'value':  _data[0]['value'][self.range:(self.range+16), :, :]
+                          'value':  _data[0]['value'][self.range:(self.range+16), :, :],
+                          'sorce_index': self.sorce[0]['value'][0].tolist(),
+                          'sorce_data': self.sorce[0]['value'][1].tolist()
                           }
                 result.append(values)
 
@@ -22,7 +25,9 @@ class featuremap_read:
                 values = {'wall_time': _data[0]['wall_time'],
                           'step': _data[0]['step'],
                           'Remaining_pictures': 0,
-                          'value': _data[0]['value'][self.range:, :, :]
+                          'value': _data[0]['value'][self.range:, :, :],
+                          'sorce_index': self.sorce[0]['value'][0].tolist(),
+                          'sorce_data': self.sorce[0]['value'][1].tolist()
                           }
                 result.append(values)
             return result

@@ -6,10 +6,11 @@ import base64
 import io
 import numpy as np
 from PIL import Image
-def featuremap_provider(file_path, range, tag):
+def featuremap_provider(file_path, range, tag, file_sorce_path):
     res = CacheIO(file_path).get_cache()
+    sorce_data = CacheIO(file_sorce_path).get_cache()
     if res:
-        map_data = featuremap_read(data=res, range=range, tag=tag).get_data()
+        map_data = featuremap_read(data=res, range=range, tag=tag, sorce_data=sorce_data).get_data()
         return map_data
     else:
         return []
@@ -28,7 +29,8 @@ def get_featuremap_data(request):
     run, tag, ranges = get_api_params(request, params)
     from tsvis.parser.utils.vis_logging import get_logger
     file_path = path_parser(get_logger().cachedir, run, 'featuremap', tag)
-    data = featuremap_provider(file_path, int(ranges), tag)
+    file_sorce_path = path_parser(get_logger().cachedir, run, 'featuremap', 'sorce')
+    data = featuremap_provider(file_path, int(ranges), tag, file_sorce_path)
     for item in range(len(data)):
         data[item]['value'] = [encode_base64(img) for img in data[item]['value']]
     return {tag: data}

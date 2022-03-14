@@ -261,7 +261,7 @@ class Guided_backprop():
             for i, module in enumerate(model.children()):
                 if list(module.children()) and isinstance(module, nn.Module):
                     relu_hook(module, name, model_list, forward_hook, backward_hook)
-                elif isinstance(module, nn.ReLU):
+                elif isinstance(module, nn.ReLU) or isinstance(module, nn.Conv2d):
                     x = module.register_forward_hook(forward_hook)
                     y = module.register_backward_hook(backward_hook)
                     self.clearn.append(x)
@@ -324,8 +324,6 @@ class Guided_backprop():
 
                 # ReLU 不含 parameter，输入端梯度是一个只有一个元素的 tuple
                 return (new_grad_in,)
-
-        all_conv = []
         def relu_hook(model,forward_hook, backward_hook):
             for i, module in enumerate(model.children()):
                 if list(module.children()) and isinstance(module, nn.Module):
@@ -333,12 +331,8 @@ class Guided_backprop():
                 elif isinstance(module, nn.ReLU):
                     module.register_forward_hook(forward_hook)
                     module.register_backward_hook(backward_hook)
-                elif isinstance(module, nn.Conv2d):
-                    all_conv.append(module)
 
         relu_hook(self.model, forward_hook_fn, backward_hook_fn)
-        # first_layer = all_conv[0]
-        # first_layer.register_backward_hook(first_layer_hook_fn)
 
     def visualize(self, input_image):
         # 获取输出，之前注册的 forward hook 开始起作用
@@ -399,7 +393,17 @@ class Guided_backprop():
 
 
 
+def find_output_sorce(output):
+    datas = []
+    # output = torch.rand(10, 12)
+    sort_index = torch.argsort(output, dim=1, descending=True)
 
+    if output.shape[1] >10:
+        sort_index = sort_index[:, :10]
+    sort_values = torch.gather(output, 1, sort_index)
+    datas.append(sort_index.detach().numpy())
+    datas.append(sort_values.detach().numpy())
+    return np.array(datas)
 
 
 

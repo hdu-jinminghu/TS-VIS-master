@@ -119,26 +119,31 @@ class SummaryWriter(object):
             self.event_file_writer.add_summary(image(f'{tag}_{i}', tensor), global_step=step)
 
     def add_featuremap(self, model, inputs):
-        self.event_file_writer.add_summary(featuremap_PFV(model, inputs))
-        data, name = featuremap_GradCam(model, inputs)
-        for data_kid, kid_name in zip(data, name):
-            data_kid = make_tensor2(np.array(data_kid))
-            metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
-            output = Summary(value=[Summary.Value(tag=kid_name+"-GradCam", tensor=data_kid, metadata=metadata)])
-            self.event_file_writer.add_summary(output)
+        data, name, put_sorce = featuremap_PFV(model, inputs)
+        metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
+        output = Summary(value=[Summary.Value(tag=name[-1] + "-PFV", tensor=data, metadata=metadata)])
+        self.event_file_writer.add_summary(output)
 
-        data_gray, name_gray = featuremap_Gray(model, inputs)
-        for data_kid, kid_name in zip(data_gray, name_gray):
-            data_kid = make_tensor2(np.array(data_kid))
-            metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
-            output = Summary(value=[Summary.Value(tag=kid_name+"-Gray", tensor=data_kid, metadata=metadata)])
-            self.event_file_writer.add_summary(output)
+        # data, name = featuremap_GradCam(model, inputs)
+        # for data_kid, kid_name in zip(data, name):
+        #     data_kid = make_tensor2(np.array(data_kid))
+        #     output = Summary(value=[Summary.Value(tag=kid_name+"-GradCam", tensor=data_kid, metadata=metadata)])
+        #     self.event_file_writer.add_summary(output)
+        #
+        # data_gray, name_gray = featuremap_Gray(model, inputs)
+        # for data_kid, kid_name in zip(data_gray, name_gray):
+        #     data_kid = make_tensor2(np.array(data_kid))
+        #     output = Summary(value=[Summary.Value(tag=kid_name+"-Gray", tensor=data_kid, metadata=metadata)])
+        #     self.event_file_writer.add_summary(output)
+
         data_guided, name_guided = featuremap_guidebp(model, inputs)
         for data_kid, kid_name in zip(data_guided, name_guided):
             data_kid = make_tensor2(np.array(data_kid))
-            metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='featuremap'))
             output = Summary(value=[Summary.Value(tag=kid_name+"-guidedbp", tensor=data_kid, metadata=metadata)])
             self.event_file_writer.add_summary(output)
+
+        sorce = Summary(value=[Summary.Value(tag="sorce", tensor=put_sorce, metadata=metadata)])
+        self.event_file_writer.add_summary(sorce)
 
 
 
