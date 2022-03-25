@@ -666,7 +666,7 @@ def filter(g, graph):
                         break
             new_g.remove(need_node)
 
-    #
+    #创造虚拟结点
     def create_virtualNode(uid):
         return {
             "label": 'VirtualNode',

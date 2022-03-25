@@ -50,6 +50,8 @@ def get_parser(value, step, wall_time):
             value = _get_text(value)
         elif value.metadata.plugin_data.plugin_name == 'featuremap':
             value = _get_featuremap(value)
+        elif value.metadata.plugin_data.plugin_name == 'transformer':
+            value = _get_transformer(value)
         else:
             raise Exception(f'cannot parse {value.metadata.plugin_data.plugin_name} data.')
 
@@ -117,6 +119,11 @@ def _get_featuremap(value):
     return dict(tag=value.tag,
                 value=np.array(_decoder_tensor(value.tensor)),
                 type='featuremap')
+
+def _get_transformer(value):
+    return dict(tag=value.tag,
+                value=np.array(_decoder_tensor(value.tensor)),
+                type='transformer')
 
 def _get_audio(value):
     dic = {'sample_rate': value.audio.sample_rate,
