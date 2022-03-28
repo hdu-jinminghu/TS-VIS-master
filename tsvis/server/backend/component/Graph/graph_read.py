@@ -467,10 +467,12 @@ def filter(g, graph):
                            "InstanceNorm2d", "InstanceNorm3d", "LazyInstanceNorm1d", "LazyInstanceNorm2d", "LazyInstanceNorm3d", "LocalResponseNorm",
                            "CrossMapLRN2d", "LayerNorm", "GroupNorm", "Dropout", "Dropout2d", "Dropout3d", "AlphaDropout", "FeatureAlphaDropout",
                            "ReflectionPad1d", "ReflectionPad2d", "ReflectionPad3d", "ReplicationPad1d", "ReplicationPad2d", "ReplicationPad3d",
-                           "ZeroPad2d", "ConstantPad1d", "ConstantPad2d", "ConstantPad3d", "RNN", "RNNBase", "LSTM", "GRU", "RNNCellBase", "RNNCell", "LSTMCell", "GRUCell"])
+                           "ZeroPad2d", "ConstantPad1d", "ConstantPad2d", "ConstantPad3d", "RNN", "RNNBase", "LSTM", "GRU", "RNNCellBase", "RNNCell", "LSTMCell", "GRUCell",
+                            "BertLayer", "BertEmbeddings"
+                            ])
     base_tree_name = []
     need_deal_input = False
-    need_deel_op = ["TupleConstruct", "TupleUnpack", "ListConstruct", "Constant", "size", "NumToTensor", "Int", "slice"]
+    need_deel_op = ["TupleConstruct", "TupleUnpack", "ListConstruct", "Constant", "size", "NumToTensor", "Int", "slice", "to"]
     def del_node_sub(node):
         if node["uid"].find("/") != -1:
             start = node["uid"].rindex("/")
@@ -494,24 +496,28 @@ def filter(g, graph):
         else:
             del_node_sub(top_node)
 
-    def del_node_kid(node):
+    def del_node_kid(node,base_tree_name):
         for target_node in reversed(node["targets"]):
-            if target_node["id"].find("/") != -1:
-                start = target_node["id"].rindex("/")
-                node_name = target_node["id"][0:start]
-                if node_name.find("/") != -1:
-                    start = node_name.rindex("/")
-                    need_name = node_name[start+1:]
-                    need_name = re.sub(r"\[(.*?)\]", "", need_name)
-                    if need_name in moudle_base_name:
-                        node["targets"].remove(target_node)
+            for i in base_tree_name:
+                if i in target_node["id"] and i != target_node["id"]:
+                    node["targets"].remove(target_node)
+
+            # if target_node["id"].find("/") != -1:
+            #     start = target_node["id"].rindex("/")
+            #     node_name = target_node["id"][0:start]
+            #     if node_name.find("/") != -1:
+            #         start = node_name.rindex("/")
+            #         need_name = node_name[start+1:]
+            #         need_name = re.sub(r"\[(.*?)\]", "", need_name)
+            #         if need_name in moudle_base_name:
+            #             node["targets"].remove(target_node)
 
         for sub_node in node["sub_net"]:
-            del_node_kid(sub_node)
+            del_node_kid(sub_node, base_tree_name)
 
 
     for top_node in g:
-        del_node_kid(top_node)
+        del_node_kid(top_node, base_tree_name)
 
     new_g = []
 
@@ -549,7 +555,7 @@ def filter(g, graph):
             find_need_node(top_node)
     if need_deal_input:
         for input_kid in need_input_node:
-            del_node_kid(input_kid)
+            del_node_kid(input_kid,base_tree_name)
             deal_io(input_kid, base_tree_name)
             input_kid["parent"] = ""
             input_kid["uid"] = input_kid["uid"].replace("/", "to")
@@ -575,11 +581,14 @@ def filter(g, graph):
 
     relu_name = []
     relu_num = []
-    for need_node in new_g:
+    for need_node in new_g:    #去除控制边
         if len(need_node["targets"]) > 1 and need_node["op"] == "":
-            for target_node in reversed(need_node["targets"]):
-                if target_node["info"] == "":
-                    need_node["targets"].remove(target_node)
+            for kid_node in need_node["targets"]:
+                if kid_node["info"] != "":
+                    for target_node in reversed(need_node["targets"]):
+                        if target_node["info"] == "":
+                            need_node["targets"].remove(target_node)
+                    break
         if need_node["op"] != "":
             if "::" in need_node["op"]:
                 need_node["label"] = need_node["op"].split("::")[1]
@@ -657,6 +666,35 @@ def filter(g, graph):
                         break
             new_g.remove(need_node)
 
+    #创造虚拟结点
+    def create_virtualNode(uid):
+        return {
+            "label": 'VirtualNode',
+            "parent": "",
+            "uid": uid,
+            "op": "",
+            "layer": 1,
+            "attrs": "",
+            "targets": [],
+            "sub_net": [],
+            "type": "VirtualNode"
+        }
+    for need_node in reversed(new_g):
+        if len(need_node["targets"]) >= 10:
+            new_node = create_virtualNode(need_node["uid"] + "[VirtualNode]")
+            new_g.append(new_node)
+            for index, kid_target in enumerate(need_node["targets"]):
+                new_node = create_virtualNode(need_node["uid"] + "[VirtualNode]"+str(index))
+                new_node["targets"].append(kid_target)
+                new_g.append(new_node)
+            need_node["targets"] = [
+                {
+                    "id": need_node["uid"] + "[VirtualNode]",
+                    "info": "",
+                    "control": "false",
+                    "num": 1,
+                }
+            ]
 
     return new_g
 

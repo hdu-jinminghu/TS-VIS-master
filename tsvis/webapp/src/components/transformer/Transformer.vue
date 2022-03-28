@@ -2,21 +2,10 @@
   <div class="transformer">
     <div class="visualization">
       <el-container>
-        <el-header>
-          <el-menu
-            :default-active="activeIndex"
-            class="el-menu-demo"
-            mode="horizontal"
-            @select="handleSelect"
-          >
-            <el-menu-item index="1">文本数据</el-menu-item>
-            <el-menu-item index="2">图像数据</el-menu-item>
-          </el-menu>
-        </el-header>
-
-        <el-main>
+        <el-header class="header">
           <el-row>
             <el-col>
+              请选择要可视化注意力的语句：
               <el-select
                 class="textSelect"
                 v-model="getValue"
@@ -32,6 +21,9 @@
               </el-select>
             </el-col>
           </el-row>
+        </el-header>
+
+        <el-main class="main">
           <text-attention-vis
             :testdata="data"
             :key="data"
@@ -55,8 +47,6 @@ export default {
   },
   data () {
     return {
-      activeIndex: '1',
-      activeIndex2: '1',
       getValue: 'The cat sat on the mat. The cat lay on the rug.',
       options: [{//选项数据：模拟从后端拿到的数据
         id: 1,
@@ -75,9 +65,6 @@ export default {
 
   },
   methods: {
-    handleSelect (key, keyPath) {
-      console.log(key, keyPath)
-    },
     changeText (e) {
       let [id, label] = e
       if (id === 1) {
@@ -106,6 +93,8 @@ export default {
 }
 
 .textSelect {
+  margin-top: 3%;
+  direction: ltr;
   width: 600px;
 }
 </style>

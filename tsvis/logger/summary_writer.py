@@ -18,6 +18,9 @@
 import os
 import numpy as np
 from typing import Union, Optional, Dict, List
+
+import torch
+
 from .writer import EventFileWriter
 from .summary import scalar, image, audio, text, histogram, hparams, exception, embedding,\
     embedding_sample, featuremap_PFV, featuremap_GradCam, SummaryMetadata,\
@@ -124,17 +127,17 @@ class SummaryWriter(object):
         output = Summary(value=[Summary.Value(tag=name[-1] + "-PFV", tensor=data, metadata=metadata)])
         self.event_file_writer.add_summary(output)
 
-        # data, name = featuremap_GradCam(model, inputs)
-        # for data_kid, kid_name in zip(data, name):
-        #     data_kid = make_tensor2(np.array(data_kid))
-        #     output = Summary(value=[Summary.Value(tag=kid_name+"-GradCam", tensor=data_kid, metadata=metadata)])
-        #     self.event_file_writer.add_summary(output)
-        #
-        # data_gray, name_gray = featuremap_Gray(model, inputs)
-        # for data_kid, kid_name in zip(data_gray, name_gray):
-        #     data_kid = make_tensor2(np.array(data_kid))
-        #     output = Summary(value=[Summary.Value(tag=kid_name+"-Gray", tensor=data_kid, metadata=metadata)])
-        #     self.event_file_writer.add_summary(output)
+        data, name = featuremap_GradCam(model, inputs)
+        for data_kid, kid_name in zip(data, name):
+            data_kid = make_tensor2(np.array(data_kid))
+            output = Summary(value=[Summary.Value(tag=kid_name+"-GradCam", tensor=data_kid, metadata=metadata)])
+            self.event_file_writer.add_summary(output)
+
+        data_gray, name_gray = featuremap_Gray(model, inputs)
+        for data_kid, kid_name in zip(data_gray, name_gray):
+            data_kid = make_tensor2(np.array(data_kid))
+            output = Summary(value=[Summary.Value(tag=kid_name+"-Gray", tensor=data_kid, metadata=metadata)])
+            self.event_file_writer.add_summary(output)
 
         data_guided, name_guided = featuremap_guidebp(model, inputs)
         for data_kid, kid_name in zip(data_guided, name_guided):
@@ -145,8 +148,25 @@ class SummaryWriter(object):
         sorce = Summary(value=[Summary.Value(tag="sorce", tensor=put_sorce, metadata=metadata)])
         self.event_file_writer.add_summary(sorce)
 
+    # import torch
+    # def test(self):
+    #     tag = "all"
+    #     left = [0, 0]
+    #     attn = make_tensor2(np.array(left))
+    #     metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='test'))
+    #     from tsvis.proto.transtext_pb2 import AttentionItem
+    #
+    #     tans = Summary.Transformer(attentionItem=[AttentionItem(tag=tag,attn=attn, left=attn, right=attn, queries=attn, keys=attn)],
+    #                                     default_filter="A",bidirectional="c", displayMode="d", layer=0, head=0)
+    #     sorce = Summary(value=[Summary.Value(tag='name', transformer=tans, metadata=metadata)])
+    #     self.event_file_writer.add_summary(sorce)
 
 
+        # .add_summary(summary=embedding(tag, tensor, label=label),
+        #              global_step=step)
+        # Summary(value=[Summary.Value(tag=name,
+        #                              projector=projector,
+        #                              metadata=metadata)])
 
     def add_audio(self,
                   tag: str,
