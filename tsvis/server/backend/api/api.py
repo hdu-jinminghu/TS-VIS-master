@@ -144,4 +144,11 @@ def get_exception_hist(request):
 def get_exception_box(request):
     return validate_get_request(request, get_exception_box_data)
 
+@gzip_page
+@response_wrapper
+def get_transformer_text(request):
+    return validate_get_request(request, get_transformer_text_data)
+
+
+
 

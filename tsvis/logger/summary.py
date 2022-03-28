@@ -32,7 +32,8 @@ from tsvis.proto.projector_pb2 import Projector
 from tsvis.proto.summary_pb2 import Summary, SummaryMetadata, HistogramProto
 from tsvis.proto.tensor_pb2 import TensorProto, TensorShapeProto
 from tsvis.proto.plugin_hparams_pb2 import HParamsPluginData, SessionStartInfo
-from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, get_gray, Guided_backprop, find_output_sorce
+from .utils import make_image, make_histogram, check_image, make_audio, get_embedding, pfv, get_activation, get_name_test, \
+    get_gray, Guided_backprop, find_output_sorce, get_attention
 
 def scalar(name, scalar_value):
     """ 转换标量数据到potobuf格式 """
@@ -66,7 +67,7 @@ def image(name, tensor):
                                         metadata=metadata)])
 
 
-
+from torch.nn import functional as F
 def featuremap_PFV(model, input_batch):
     embeddings = []
     name = []
@@ -74,6 +75,7 @@ def featuremap_PFV(model, input_batch):
 
     get_embedding(model, embeddings, name, model_list)
     output = model(input_batch)
+    output = F.softmax(output, dim=1)
     vis = pfv(embeddings, image_shape=input_batch.shape[-2:])
     put_sorce = find_output_sorce(output)
     def filters(imgs, f=lambda x: x):
@@ -135,6 +137,22 @@ def featuremap_guidebp(model, input_batch):
 
     return out, name
 
+def attention(model, model_type, tokenizer, sentence_a, sentence_b=None, display_mode='dark', layer=None, head=None):
+    attn_data = get_attention(model, model_type, tokenizer, sentence_a, sentence_b, include_queries_and_keys=True)
+    if model_type == 'gpt2':
+        bidirectional = False
+    else:
+        bidirectional = True
+    params = {
+        'attention': attn_data,
+        'default_filter': "all",
+        'bidirectional': bidirectional,
+        'display_mode': display_mode,
+        'layer': layer,
+        'head': head
+    }
+
+    return params
 
 
 

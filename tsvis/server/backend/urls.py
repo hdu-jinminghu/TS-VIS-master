@@ -38,7 +38,8 @@ api_urlpatterns = [
     path('exception_data', api.get_exception),
     path('exception_hist', api.get_exception_hist),
     path('exception_box', api.get_exception_box),
-    path('featuremap', api.get_featuremap)
+    path('featuremap', api.get_featuremap),
+    path('transformer_text',api.get_transformer_text)
 ]
 
 urlpatterns = [

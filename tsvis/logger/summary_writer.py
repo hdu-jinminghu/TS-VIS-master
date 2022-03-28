@@ -24,7 +24,7 @@ import torch
 from .writer import EventFileWriter
 from .summary import scalar, image, audio, text, histogram, hparams, exception, embedding,\
     embedding_sample, featuremap_PFV, featuremap_GradCam, SummaryMetadata,\
-    Summary, make_tensor2, featuremap_Gray, featuremap_guidebp
+    Summary, make_tensor2, featuremap_Gray, featuremap_guidebp, attention
 numpy_compatible = np.ndarray
 
 class SummaryWriter(object):
@@ -167,6 +167,38 @@ class SummaryWriter(object):
         # Summary(value=[Summary.Value(tag=name,
         #                              projector=projector,
         #                              metadata=metadata)])
+    def add_attention(self,
+                      model,
+                      model_type,
+                      tokenizer,
+                      sentence_a,
+                      sentence_b=None,
+                      display_mode='dark',
+                      layer=0,
+                      head=0):
+
+        from tsvis.proto.transtext_pb2 import AttentionItem
+        data = attention(model, model_type, tokenizer, sentence_a, sentence_b, display_mode, layer, head)
+        tans = Summary.Transformer()
+        for item in data["attention"]:
+            value = data["attention"][item]
+            tans.attentionItem.append(AttentionItem(tag=item,
+                                                    attn=make_tensor2(np.array(value['attn'])),
+                                                    left=make_tensor2(np.array(value['left_text'])),
+                                                    right=make_tensor2(np.array(value['right_text'])),
+                                                    queries=make_tensor2(np.array(value['queries'])),
+                                                    keys=make_tensor2(np.array(value['keys']))))
+        tans.default_filter = data['default_filter']
+        tans.bidirectional = str(data['bidirectional'])
+        tans.displayMode = data['display_mode']
+        tans.layer = data['layer']
+        tans.head = data['head']
+        metadata = SummaryMetadata(plugin_data=SummaryMetadata.PluginData(plugin_name='TransformerText'))
+        sorce = Summary(value=[Summary.Value(tag='TransformerText', transformer=tans, metadata=metadata)])
+        self.event_file_writer.add_summary(sorce)
+
+
+
 
     def add_audio(self,
                   tag: str,

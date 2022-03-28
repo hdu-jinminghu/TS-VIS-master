@@ -52,6 +52,8 @@ def get_parser(value, step, wall_time):
             value = _get_featuremap(value)
         elif value.metadata.plugin_data.plugin_name == 'transformer':
             value = _get_transformer(value)
+        elif value.metadata.plugin_data.plugin_name == 'TransformerText':
+            value = _get_TransformerText(value)
         else:
             raise Exception(f'cannot parse {value.metadata.plugin_data.plugin_name} data.')
 
@@ -71,6 +73,25 @@ def _decoder_tensor(tensor):
     tensor_shape = tuple([i.size for i in tensor.tensor_shape.dim])
     tensor_content = np.frombuffer(tensor.tensor_content, dtype=tensor.dtype)
     return tensor_content.reshape(tensor_shape)
+def _decoder_TransformerText(value):
+    data = {}
+    for attentionItem in list(value.attentionItem):
+        tag = attentionItem.tag
+        attention_kid_data = {}
+        attention_kid_data['attn'] = _decoder_tensor(attentionItem.attn)
+        attention_kid_data['left_text'] = _decoder_tensor(attentionItem.left)
+        attention_kid_data['right_text'] = _decoder_tensor(attentionItem.right)
+        attention_kid_data['queries'] = _decoder_tensor(attentionItem.queries)
+        attention_kid_data['keys'] = _decoder_tensor(attentionItem.keys)
+        data[tag] = attention_kid_data
+    data["bidirectional"] = value.bidirectional
+    data["default_filter"] = value.default_filter
+    data["displayMode"] = value.displayMode
+    data["head"] = value.head
+    data["layer"] = value.layer
+    return data
+
+
 
 def get_graph(event):
     graph = GraphDef()
@@ -124,6 +145,11 @@ def _get_transformer(value):
     return dict(tag=value.tag,
                 value=np.array(_decoder_tensor(value.tensor)),
                 type='transformer')
+
+def _get_TransformerText(value):
+    return dict(tag=value.tag,
+                value=_decoder_TransformerText(value.transformer),
+                type='TransformerText')
 
 def _get_audio(value):
     dic = {'sample_rate': value.audio.sample_rate,
