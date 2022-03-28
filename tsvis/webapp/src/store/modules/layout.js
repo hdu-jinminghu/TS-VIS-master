@@ -51,14 +51,14 @@ const getters = {
 }
 
 const actions = {
-  async initWaitingPage(context, params) {
+  async initWaitingPage (context, params) {
     await http.useGet('/api/init', params)
       .then((res) => {
         context.commit('setCookie', res.data.data['session_id'])
         context.commit('setWaitingMessage', res.data.data['msg'])
       })
   },
-  async initFeatchCategory(context, path) {
+  async initFeatchCategory (context, path) {
     const splitArray = path.split('/')
     const cate = splitArray[splitArray.length - 1]
     await http.useGet(port.manage.initCategory, {}).then((res) => {
@@ -133,7 +133,7 @@ const actions = {
       context.commit('setRunCategory', constants.CATEGORYORDER[categoryOrder[newIndex]])
     })
   },
-  async featchCategory(context, path) {
+  async featchCategory (context, path) {
     const splitArray = path.split('/')
     const cate = splitArray[splitArray.length - 1]
     await http.useGet(port.manage.initCategory, {}).then((res) => {
@@ -186,17 +186,17 @@ const actions = {
         categoryOrder.push(9)
         newIndex = 0
       }
-      
+
       context.commit('setRunCategoryDetail', categoryToRunFile)
       context.commit('setCategory', [categoryOrder, newIndex])
       context.commit('setRunCategory', constants.CATEGORYORDER[categoryOrder[newIndex]])
     })
   },
-  async timingFeatchCategory(context, parm) {
+  async timingFeatchCategory (context, parm) {
     // parm 存储间隔时间
     const splitArray = parm[1].split('/')
     const cate = splitArray[splitArray.length - 1]
-    const t = setInterval(async() => {
+    const t = setInterval(async () => {
       http.useGet(port.manage.initCategory, { test: 1 }).then((res) => {
         const dataCategoryInfo = res.data.data
         let categorys = []
@@ -265,7 +265,7 @@ const actions = {
     }, parm[0])
     context.commit('setSyncTime', t)
   },
-  async timingFeatchCategoryOnce(context, parm) {
+  async timingFeatchCategoryOnce (context, parm) {
     const splitArray = parm.split('/')
     const cate = splitArray[splitArray.length - 1]
     await http.useGet(port.manage.initCategory, {}).then((res) => {
@@ -334,7 +334,7 @@ const actions = {
       context.commit('setRunCategory', constants.CATEGORYORDER[categoryOrder[newIndex]])
     })
   },
-  async getClickState(context, parm) {
+  async getClickState (context, parm) {
     context.state.categoryIndex.forEach((value) => {
       const el = constants.CATEGORYORDER[value]
       if (value === parm) {
@@ -362,7 +362,7 @@ const mutations = {
     state.categoryIndex = value[0];
     const CategoryInfomation = []
     Array.from(value[0]).forEach((order, index) => {
-      console.log(order)
+      // console.log(order)
       CategoryInfomation.push({
         id: index,
         rawName: constants.CATEGORYORDER[order],

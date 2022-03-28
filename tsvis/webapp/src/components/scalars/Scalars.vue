@@ -1,24 +1,30 @@
 <style lang="less" scoped>
-    .scalars{
-        height: 100%;
-        overflow-y: auto;
-        width: 100%;
-        background-color: white;
-    }
-    .display-panel{
-      margin: 1% 1% 0 1%;
-      height: 97.5%;
-      border-radius: 5px 5px 0 0;
-      box-shadow: rgba(0,0,0,.3) 0px 0px 10px;
-      background-color: white;
-      overflow-y: auto;
-    }
+.scalars {
+  height: 100%;
+  overflow-y: auto;
+  width: 100%;
+  background-color: white;
+}
+.display-panel {
+  margin: 1% 1% 0 1%;
+  height: 97.5%;
+  border-radius: 5px 5px 0 0;
+  box-shadow: rgba(0, 0, 0, 0.3) 0px 0px 10px;
+  background-color: white;
+  overflow-y: auto;
+}
 </style>
 <template>
   <div>
     <div class="scalars">
       <div class="display-panel">
-        <subScalars v-for="(value, name, index) in totaltag" :key="name" :subname="name" :value="value" :index="index" />
+        <subScalars
+          v-for="(value, name, index) in totaltag"
+          :key="name"
+          :subname="name"
+          :value="value"
+          :index="index"
+        />
       </div>
     </div>
   </div>
@@ -33,7 +39,7 @@ export default {
     subScalars
   },
 
-  data() {
+  data () {
     return {
       data: [],
       totaltag: {}
@@ -51,29 +57,30 @@ export default {
     ])
   },
   watch: {
-    categoryInfo() {
+    categoryInfo () {
       this.settotaltag()
     },
-    getErrorMessage(val) {
+    getErrorMessage (val) {
       this.$message({
         message: val.split('_')[0],
         type: 'error'
       })
     },
     // 定时请求数据
-    getIntervalChange() {
+    getIntervalChange () {
       this.settotaltag()
       this.totaltag = this.getTotaltag
     }
   },
-  created() {
+  created () {
     if (Object.keys(this.getTotaltag).length !== 0) {
       this.totaltag = this.getTotaltag
+      console.log('totaltag:', this.totaltag)
     } else {
       this.settotaltag()
     }
   },
-  mounted() {
+  mounted () {
 
   },
   methods: {
@@ -83,11 +90,13 @@ export default {
     ...mapScalarActions([
       'getData'
     ]),
-    settotaltag() {
+    settotaltag () {
       if (this.categoryInfo === '') {
         return
       }
+      console.log('categoryInfo:', this.categoryInfo)
       this.data = [].concat(JSON.parse(JSON.stringify(this.categoryInfo)))
+      console.log('data:', this.data)
       this.totaltag = {}
       let param = {}
       for (let i = 0; i < this.data[1].length; i++) {

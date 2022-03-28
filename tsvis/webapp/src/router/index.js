@@ -9,22 +9,23 @@
 import Vue from 'vue'
 import Router from 'vue-router'
 import Layout from '@/components/layout/Layout.vue'
-import {Scalars, ScalarsPanel} from '@/components/scalars'
-import {Medias, MediasPanel} from '@/components/medias'
-import {Graphs, GraphsPanel} from '@/components/graphs'
-import {Hyperparms, HyperparmsPanel} from '@/components/hyperparms'
-import {Features, FeaturesPanel} from '@/components/featuremap'
-import {Customs, CustomsPanel} from '@/components/customs'
-import {Statistics, StatisticsPanel} from '@/components/statistics'
-import {ROCs, ROCsPanel} from '@/components/rocs'
-import {Embeddings, EmbeddingsPanel} from '@/components/embeddings'
-import {Exception, ExceptionPanel} from '@/components/exception'
+import { Scalars, ScalarsPanel } from '@/components/scalars'
+import { Medias, MediasPanel } from '@/components/medias'
+import { Graphs, GraphsPanel } from '@/components/graphs'
+import { Hyperparms, HyperparmsPanel } from '@/components/hyperparms'
+import { Features, FeaturesPanel } from '@/components/featuremap'
+import { Customs, CustomsPanel } from '@/components/customs'
+import { Statistics, StatisticsPanel } from '@/components/statistics'
+import { ROCs, ROCsPanel } from '@/components/rocs'
+import { Embeddings, EmbeddingsPanel } from '@/components/embeddings'
+import { Exception, ExceptionPanel } from '@/components/exception'
+import { Transformer, TransformerPanel } from '@/components/transformer'
 
 Vue.use(Router)
 
 export default new Router({
   routes: [
-    {path: '/', redirect: '/index'},
+    { path: '/', redirect: '/index' },
     {
       path: '/index',
       name: 'Layout',
@@ -91,6 +92,13 @@ export default new Router({
           components: {
             default: Exception,
             right: ExceptionPanel
+          }
+        },
+        {
+          path: 'transformer',
+          components: {
+            default: Transformer,
+            right: TransformerPanel
           }
         },
         {

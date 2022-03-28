@@ -1,7 +1,7 @@
 const HOSTNAME = window.location.origin + '/'
 let _serverhost;
 
-switch(process.env.BACKEND){
+switch (process.env.BACKEND) {
   case 'local': _serverhost = 'http://localhost:9898'; break;
   case 'server': _serverhost = 'http://localhost:8080'; break;
   default: _serverhost = ''; break;
@@ -20,9 +20,10 @@ const CATEGORY = [
   ['ROC', 'ROCs', 'ROCsPanel', '评测曲线', 'icon-roc'],
   ['HYPERPARM', 'Hyperparms', 'HyperparmsPanel', '超参分析', 'icon-chaocanfenxi_1'],
   ['EXCEPTION', 'Exception', 'ExceptionPanel', '异常检测', 'icon-yichang3'],
+  ['TRANSFORMER', 'Transformer', 'TransformerPanel', 'Transformer', 'icon-transformer'],
   ['CUSTOM', 'Customs', 'CustomsPanel', '用户定制', 'icon-yonghudingzhi_1']
 ]
-const CATEGORYORDER = ['graph', 'scalar', 'media', 'statistic', 'embedding', 'featuremap', 'roc', 'hyperparm', 'exception', 'custom']
-const RUNFILESHOWFlAG = { 'graph': 0, 'scalar': 1, 'media': 1, 'statistic': 1, 'embedding': 0, 'featuremap': 0, 'roc': 1, 'hyperparm': 0, 'exception': 0, 'custom': 2 }
+const CATEGORYORDER = ['graph', 'scalar', 'media', 'statistic', 'embedding', 'featuremap', 'roc', 'hyperparm', 'exception', 'transformer', 'custom']
+const RUNFILESHOWFlAG = { 'graph': 0, 'scalar': 1, 'media': 1, 'statistic': 1, 'embedding': 0, 'featuremap': 0, 'roc': 1, 'hyperparm': 0, 'exception': 0, 'transformer': 0, 'custom': 2 }
 
 export default { HOSTNAME, DJANGOHOSTNAME, CATEGORY, CATEGORYORDER, RUNFILESHOWFlAG, IMGURl }
