@@ -18,6 +18,7 @@ import embedding from './modules/embedding'
 import exception from './modules/exception'
 import hyperparm from './modules/hyperparm'
 import featuremap from './modules/featuremap'
+import transformertext from './modules/transformertext'
 
 Vue.use(Vuex)
 
@@ -39,6 +40,7 @@ const store = new Vuex.Store({
     exception: exception,
     hyperparm: hyperparm,
     featuremap: featuremap,
+    transformertext: transformertext,
   }
 })
 
